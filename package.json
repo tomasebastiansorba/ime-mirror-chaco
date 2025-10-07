@@ -1,0 +1,7 @@
+{
+  "name": "ime-mirror-chaco",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node scripts/fetch_ime.js" },
+  "dependencies": {}
+}
