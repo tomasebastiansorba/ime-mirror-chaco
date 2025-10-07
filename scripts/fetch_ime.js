@@ -118,7 +118,7 @@ async function main() {
       all.push(...items);
     }
   }
-  fs.writeFileSync(path.join(dayDirJson, `all.json`), JSON.stringify(all, null, 2), "utf8"));
+  fs.writeFileSync(path.join(dayDirJson, `all.json`), JSON.stringify(all, null, 2), "utf8");
   console.log(`Listo: ${all.length} items en json/${y}-${m}-${d}/all.json`);
 }
 
