@@ -3,8 +3,8 @@ name: IME Mirror
 on:
   workflow_dispatch:
   schedule:
-    - cron: "5 18 * * *"   # 18:05 UTC (~15:05 AR)
-    - cron: "15 1 * * *"   # 01:15 UTC (~22:15 AR del día anterior)
+    - cron: "5 18 * * *"   # 18:05 UTC (~15:05 AR) - Matutino
+    - cron: "15 1 * * *"   # 01:15 UTC (~22:15 AR del día anterior) - Vespertino
 
 permissions:
   contents: write
@@ -14,17 +14,29 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TZ: America/Argentina/Cordoba
+      # <= TU WORKER (proxy) PARA SALTAR BLOQUEOS
+      PROXY_BASE: "https://pj-chaco-proxy.tomasebastiansorba.workers.dev/?url="
+      # Juzgados a consultar (arranco con el 13; podés agregar más abajo)
       JUZGADOS_JSON: |
         [
           {"n":13,"path":"Juzgado_Civil_Comercial_13","etiqueta":"JUZGADO CIVIL Y COMERCIAL Nº 13 - RESISTENCIA"}
         ]
+        # Para sumar más, dejá así (quita el comentario y ajusta):
+        # [
+        #   {"n":13,"path":"Juzgado_Civil_Comercial_13","etiqueta":"JUZGADO CIVIL Y COMERCIAL Nº 13 - RESISTENCIA"},
+        #   {"n":12,"path":"Juzgado_Civil_Comercial_12","etiqueta":"JUZGADO CIVIL Y COMERCIAL Nº 12 - RESISTENCIA"},
+        #   {"n":11,"path":"Juzgado_Civil_Comercial_11","etiqueta":"JUZGADO CIVIL Y COMERCIAL Nº 11 - RESISTENCIA"},
+        #   {"n":8, "path":"Juzgado_Civil_Comercial_8", "etiqueta":"JUZGADO CIVIL Y COMERCIAL Nº 8 - RESISTENCIA"}
+        # ]
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # no tenemos dependencias, pero si mañana agregás, esto no rompe
       - name: Install deps (if any)
         run: |
           if [ -f package-lock.json ]; then
