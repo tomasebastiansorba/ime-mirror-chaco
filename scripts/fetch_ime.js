@@ -1,4 +1,4 @@
-// scripts/fetch_ime.js (versión robusta con timeouts, reintentos y proxy opcional)
+// scripts/fetch_ime.js
 import fs from "fs";
 import path from "path";
 
@@ -6,9 +6,7 @@ const IME_BASE = "https://www.justiciachaco.gov.ar/IME/Resistencia/Civil";
 const TURNOS = ["Matutino", "Vespertino"];
 const JUZGADOS = JSON.parse(process.env.JUZGADOS_JSON || "[]");
 const TZ = process.env.TZ || "America/Argentina/Cordoba";
-
-// OPCIONAL: si configurás un proxy (Paso 3), ponelo en el workflow env PROXY_BASE = "https://TU-WORKER.workers.dev/fetch?url="
-const PROXY_BASE = process.env.PROXY_BASE || ""; // si está vacío, no se usa
+const PROXY_BASE = process.env.PROXY_BASE || ""; // ej: "https://...workers.dev/?url="
 
 function ymdPartsInTZ(d = new Date(), tz = TZ) {
   const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -35,13 +33,13 @@ function parseImeText(txt) {
   return out;
 }
 
-// --- fetch con timeout explícito + reintentos ---
+// fetch con timeout + reintentos
 async function fetchWithTimeout(url, { timeoutMs = 25000, headers = {}, tries = 3, backoffMs = 900 } = {}) {
   for (let i = 1; i <= tries; i++) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const res = await fetch(url, { headers, signal: ctrl.signal });
+      const res = await fetch(url, { headers, signal: ctrl.signal, redirect: "follow" });
       clearTimeout(t);
       if (res.status === 200) {
         const buf = Buffer.from(await res.arrayBuffer());
@@ -65,16 +63,10 @@ async function fetchWithTimeout(url, { timeoutMs = 25000, headers = {}, tries = 
   return null;
 }
 
-// candidate URLs: HTTPS, HTTP y PROXY (si está configurado)
 function buildCandidates(httpsUrl) {
   const out = [httpsUrl];
-  if (httpsUrl.startsWith("https://")) {
-    out.push("http://" + httpsUrl.slice("https://".length)); // puerto 80 (a veces abre aunque 443 no)
-  }
-  if (PROXY_BASE) {
-    // el proxy espera ?url=<URL completa> (ver paso 3)
-    out.push(PROXY_BASE + encodeURIComponent(httpsUrl));
-  }
+  if (httpsUrl.startsWith("https://")) out.push("http://" + httpsUrl.slice("https://".length));
+  if (PROXY_BASE) out.push(PROXY_BASE + encodeURIComponent(httpsUrl)); // último intento: tu Worker
   return out;
 }
 
@@ -84,8 +76,7 @@ async function fetchTxt(httpsUrl) {
     "Referer": "https://www.justiciachaco.gov.ar/",
     "Accept": "text/plain,*/*;q=0.8"
   };
-  const candidates = buildCandidates(httpsUrl);
-  for (const u of candidates) {
+  for (const u of buildCandidates(httpsUrl)) {
     console.log("=> probando", u);
     const txt = await fetchWithTimeout(u, { headers, timeoutMs: 25000, tries: 3, backoffMs: 1000 });
     if (txt) return txt;
@@ -95,7 +86,7 @@ async function fetchTxt(httpsUrl) {
 
 async function main() {
   const { y, m, d, iso } = ymdPartsInTZ(new Date(), TZ);
-  const dayDirTxt = path.join("data", `${y}-${m}-${d}`);
+  const dayDirTxt  = path.join("data", `${y}-${m}-${d}`);
   const dayDirJson = path.join("json", `${y}-${m}-${d}`);
   ensureDir(dayDirTxt); ensureDir(dayDirJson);
 
